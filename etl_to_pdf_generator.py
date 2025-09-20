@@ -1,125 +1,114 @@
-# Python script to extract data from MongoDB and generate a PDF report.
-
-# --- Step 1: Import necessary libraries ---
-# pymongo is the official Python driver for MongoDB.
-# reportlab is a powerful library for creating PDFs in Python.
-from pymongo import MongoClient
+import json
 from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
+from pymongo import MongoClient
+import os
 
-# --- Step 2: Configuration ---
-# You can change these variables to match your MongoDB setup and desired output.
+# --- Configuration ---
 MONGO_URI = "mongodb://localhost:27017/"
 DB_NAME = "etl_db"
 COLLECTION_NAME = "students"
-OUTPUT_PDF_PATH = "student_report.pdf"
 
-def connect_to_mongodb():
+def get_data_from_mongodb():
     """
-    Establishes a connection to the MongoDB database.
-    
+    Connects to MongoDB and retrieves data from the specified collection.
+
     Returns:
-        pymongo.database.Database: The database object if connection is successful,
-                                    None otherwise.
+        list: A list of dictionaries representing the documents, or None if an error occurs.
     """
+    client = None
     try:
         # Create a MongoClient to connect to the MongoDB instance.
         client = MongoClient(MONGO_URI)
-        # Check if the connection is successful by listing database names.
-        client.admin.command('ping')
+        # The ismaster command is a quick way to check if the connection is active.
+        client.admin.command('ismaster')
         print("Connected to MongoDB successfully!")
-        return client.get_database(DB_NAME)
-    except Exception as e:
-        print(f"Error connecting to MongoDB: {e}")
-        return None
-
-def fetch_data(db):
-    """
-    Fetches all documents from the specified MongoDB collection.
-
-    Args:
-        db (pymongo.database.Database): The database object.
-
-    Returns:
-        list: A list of dictionaries, where each dictionary is a document
-              from the MongoDB collection.
-    """
-    try:
+        
+        db = client.get_database(DB_NAME)
         collection = db[COLLECTION_NAME]
+        
         # Find all documents in the collection and convert the cursor to a list.
-        data = list(collection.find({}))
-        print(f"Fetched {len(data)} documents from the '{COLLECTION_NAME}' collection.")
+        # We also remove the MongoDB '_id' field as it's not JSON serializable.
+        data = list(collection.find({}, {'_id': False}))
+        print(f"Retrieved {len(data)} documents from '{COLLECTION_NAME}'.")
         return data
+
     except Exception as e:
-        print(f"Error fetching data from MongoDB: {e}")
-        return []
+        print(f"Error retrieving data from MongoDB: {e}")
+        return None
+    finally:
+        if client:
+            client.close()
 
 def generate_pdf(data):
     """
     Generates a PDF report from the provided data.
 
     Args:
-        data (list): The list of dictionaries to be included in the report.
+        data (list): A list of dictionaries with student information.
     """
     try:
-        # Create a PDF document template.
-        doc = SimpleDocTemplate(OUTPUT_PDF_PATH, pagesize=letter)
-        story = []
-        
-        # Get standard ReportLab styles.
+        doc = SimpleDocTemplate("student_report.pdf", pagesize=letter)
         styles = getSampleStyleSheet()
+        flowables = []
 
-        # Add a title to the document.
+        # Title
         title_style = styles['Title']
-        story.append(Paragraph("Student Enrollment Report", title_style))
-        story.append(Spacer(1, 12))
-        
-        # Check if there is data to process.
-        if not data:
-            no_data_style = styles['Normal']
-            no_data_style.textColor = colors.red
-            story.append(Paragraph("No data found to generate the report.", no_data_style))
-        else:
-            # Create a header row for the table.
-            table_data = [
-                ['Student ID', 'Name', 'Course', 'Grade', 'Enrollment Date', 'Fees Paid']
-            ]
-            
-            # Populate the table with data from MongoDB.
-            for doc in data:
-                row = [
-                    doc.get('student_id', 'N/A'),
-                    doc.get('name', 'N/A'),
-                    doc.get('course', 'N/A'),
-                    doc.get('grade', 'N/A'),
-                    doc.get('enrollment_date', 'N/A'),
-                    'Yes' if doc.get('fees_paid') else 'No'
-                ]
-                table_data.append(row)
+        title_style.alignment = 1  # Center alignment
+        flowables.append(Paragraph("Student Academic Report", title_style))
+        flowables.append(Spacer(1, 12))
 
-            # Create the table object and apply a style.
-            table = Table(table_data)
+        # Check if data exists before processing
+        if not data:
+            no_data_style = ParagraphStyle(
+                name='NoDataStyle',
+                parent=styles['Normal'],
+                alignment=1,
+                textColor=colors.red
+            )
+            flowables.append(Paragraph("No data found to generate the report.", no_data_style))
+        else:
+            # Table data headers
+            table_data = [['Name', 'Roll No.', 'Grade', 'Result']]
+            for student in data:
+                table_data.append([
+                    student.get('name', 'N/A'),
+                    student.get('roll_no', 'N/A'),
+                    student.get('grade', 'N/A'),
+                    student.get('result', 'N/A')
+                ])
+
+            # Create table and apply styles
             table_style = TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 14),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black),
                 ('BOX', (0, 0), (-1, -1), 1, colors.black),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold')
             ])
+            
+            table = Table(table_data)
             table.setStyle(table_style)
             
-            story.append(table)
-        
-        # Build the PDF document.
-        doc.build(story)
-        print(f"PDF report generated successfully at '{OUTPUT_PDF_PATH}'.")
+            flowables.append(table)
+            
+            # Signature and Date
+            flowables.append(Spacer(1, 24))
+            flowables.append(Paragraph("Signature:", styles['Normal']))
+            flowables.append(Spacer(1, 12))
+            flowables.append(Paragraph("Date:", styles['Normal']))
+            
+        doc.build(flowables)
+        print("PDF report 'student_report.pdf' generated successfully!")
 
     except Exception as e:
-        print(f"Error generating PDF: {e}")
+        print(f"Error generating PDF report: {e}")
 
 def main():
     """
@@ -127,15 +116,15 @@ def main():
     """
     print("--- Starting ETL Process ---")
     
-    # 1. Connect to MongoDB and fetch data.
-    db = connect_to_mongodb()
-    if db:
-        data = fetch_data(db)
-        
-        # 2. Generate the PDF report using the fetched data.
+    # Extract data from MongoDB
+    data = get_data_from_mongodb()
+
+    # Corrected check: check if the data list is not None and not empty.
+    if data is not None and len(data) > 0:
+        # Transform and Load (generate PDF)
         generate_pdf(data)
-    
-    print("--- ETL Process Complete ---")
+    else:
+        print("No data retrieved or an error occurred. Cannot generate PDF.")
 
 if __name__ == "__main__":
     main()

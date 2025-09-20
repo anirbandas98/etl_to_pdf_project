@@ -1,0 +1,42 @@
+[
+{
+"student_id": "ST1001",
+"name": "Alice Johnson",
+"course": "Computer Science",
+"grade": "A",
+"enrollment_date": "2023-09-01",
+"fees_paid": true
+},
+{
+"student_id": "ST1002",
+"name": "Bob Williams",
+"course": "Data Analytics",
+"grade": "B+",
+"enrollment_date": "2023-08-25",
+"fees_paid": false
+},
+{
+"student_id": "ST1003",
+"name": "Charlie Brown",
+"course": "Electrical Engineering",
+"grade": "C",
+"enrollment_date": "2023-09-10",
+"fees_paid": true
+},
+{
+"student_id": "ST1004",
+"name": "Diana Prince",
+"course": "Computer Science",
+"grade": "A+",
+"enrollment_date": "2023-09-05",
+"fees_paid": true
+},
+{
+"student_id": "ST1005",
+"name": "Eve Adams",
+"course": "Data Analytics",
+"grade": "B",
+"enrollment_date": "2023-08-30",
+"fees_paid": true
+}
+]

@@ -42,6 +42,28 @@ def get_data_from_mongodb():
         if client:
             client.close()
 
+def transform_data(data):
+    """
+    Transforms the student data based on new business logic.
+    - A student fails if their fees are not paid.
+    - A student passes if their grade is 'D' or higher.
+
+    Args:
+        data (list): A list of dictionaries with student information.
+    
+    Returns:
+        list: The transformed list of data.
+    """
+    for student in data:
+        # Check for fees first, as it's the primary condition
+        if not student.get('fees_paid', False):
+            student['result'] = 'Fees Due'
+        elif student.get('grade') in ['A', 'B', 'C', 'D']:
+            student['result'] = 'Pass'
+        else:
+            student['result'] = 'Fail'
+    return data
+
 def generate_pdf(data):
     """
     Generates a PDF report from the provided data.
@@ -71,12 +93,13 @@ def generate_pdf(data):
             flowables.append(Paragraph("No data found to generate the report.", no_data_style))
         else:
             # Table data headers
-            table_data = [['Name', 'Roll No.', 'Grade', 'Result']]
+            table_data = [['Name', 'Roll No.', 'Grade', 'Fees Paid', 'Result']]
             for student in data:
                 table_data.append([
                     student.get('name', 'N/A'),
                     student.get('roll_no', 'N/A'),
                     student.get('grade', 'N/A'),
+                    "Yes" if student.get('fees_paid', False) else "No",
                     student.get('result', 'N/A')
                 ])
 
@@ -121,8 +144,10 @@ def main():
 
     # Corrected check: check if the data list is not None and not empty.
     if data is not None and len(data) > 0:
-        # Transform and Load (generate PDF)
-        generate_pdf(data)
+        # Transform the data based on business rules
+        transformed_data = transform_data(data)
+        # Load the transformed data into a PDF
+        generate_pdf(transformed_data)
     else:
         print("No data retrieved or an error occurred. Cannot generate PDF.")
 

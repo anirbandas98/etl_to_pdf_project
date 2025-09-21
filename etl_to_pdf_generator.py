@@ -18,6 +18,7 @@ def get_data_from_mongodb():
     Returns:
         list: A list of dictionaries representing the documents, or None if an error occurs.
     """
+    
     client = None
     try:
         # Create a MongoClient to connect to the MongoDB instance.

@@ -1,0 +1,26 @@
+2025-09-22 01:51:10,986 - INFO - --- Starting Data Ingestion Process ---
+2025-09-22 01:51:11,014 - INFO - Connected to MongoDB successfully!
+2025-09-22 01:51:11,015 - INFO - Successfully loaded data from 'sample_data.json'.
+2025-09-22 01:51:11,016 - INFO - Clearing existing data from 'students' collection...
+2025-09-22 01:51:11,017 - INFO - Successfully inserted 5 records into 'students' collection.
+2025-09-22 01:51:11,018 - INFO - MongoDB connection closed.
+2025-09-22 01:51:11,018 - INFO - --- Data Ingestion Process Finished ---
+2025-09-22 01:51:58,873 - INFO - --- Starting Data Ingestion Process ---
+2025-09-22 01:51:58,899 - INFO - Connected to MongoDB successfully!
+2025-09-22 01:51:58,899 - INFO - Successfully loaded data from 'sample_data.json'.
+2025-09-22 01:51:58,901 - INFO - Clearing existing data from 'students' collection...
+2025-09-22 01:51:58,903 - INFO - Successfully inserted 50 records into 'students' collection.
+2025-09-22 01:51:58,903 - INFO - MongoDB connection closed.
+2025-09-22 01:51:58,904 - INFO - --- Data Ingestion Process Finished ---
+2025-09-22 01:52:04,501 - INFO - --- Starting ETL Process ---
+2025-09-22 01:52:04,502 - INFO - --- Starting Data Extraction ---
+2025-09-22 01:52:04,512 - INFO - Connected to MongoDB successfully!
+2025-09-22 01:52:04,513 - INFO - Extracted 50 records from MongoDB.
+2025-09-22 01:52:04,514 - INFO - MongoDB connection closed.
+2025-09-22 01:52:04,514 - INFO - --- Data Extraction Finished ---
+2025-09-22 01:52:04,514 - INFO - --- Starting Data Transformation ---
+2025-09-22 01:52:04,514 - INFO - Data transformation complete.
+2025-09-22 01:52:04,514 - INFO - Starting PDF generation...
+2025-09-22 01:52:04,515 - INFO - Created output directory: pdf_reports
+2025-09-22 01:52:04,525 - INFO - PDF report successfully generated at: D:\Python Programs\etl_to_pdf_project\pdf_reports\student_report.pdf
+2025-09-22 01:52:04,526 - INFO - --- ETL Process Finished ---

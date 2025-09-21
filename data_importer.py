@@ -1,65 +1,116 @@
 import json
-from pymongo import MongoClient
+import logging
 import os
+from datetime import datetime
+from pymongo import MongoClient
 
 # --- Configuration ---
 MONGO_URI = "mongodb://localhost:27017/"
 DB_NAME = "etl_db"
 COLLECTION_NAME = "students"
-DATA_FILE = "sample_data.json"
+DATA_FILE_PATH = "sample_data.json"
+
+# --- Logging Configuration ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("etl_process.log"),
+        logging.StreamHandler()
+    ]
+)
 
 def connect_to_mongodb():
     """
     Establishes a connection to the MongoDB database.
-    
+
     Returns:
-        pymongo.database.Database: The database object if connection is successful,
-                                    None otherwise.
+        MongoClient: The MongoClient object, or None if connection fails.
     """
     try:
-        # Create a MongoClient to connect to the MongoDB instance.
-        client = MongoClient(MONGO_URI)
-        # The ismaster command is cheap and does not require auth.
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
         client.admin.command('ismaster')
-        print("Connected to MongoDB successfully!")
-        return client.get_database(DB_NAME)
+        logging.info("Connected to MongoDB successfully!")
+        return client
     except Exception as e:
-        print(f"Error connecting to MongoDB: {e}")
+        logging.error(f"Error connecting to MongoDB: {e}", exc_info=True)
         return None
 
-def import_data():
+def load_data_from_file(file_path):
     """
-    Reads data from a JSON file and inserts it into a MongoDB collection.
-    """
-    db = connect_to_mongodb()
-    
-    # Corrected check: check if the database object is None.
-    if db is None:
-        return
+    Loads data from a specified JSON file.
 
+    Args:
+        file_path (str): The path to the JSON data file.
+
+    Returns:
+        list: A list of dictionaries containing the data, or an empty list if loading fails.
+    """
     try:
-        # Open the JSON data file.
-        with open(DATA_FILE, 'r') as f:
-            data = json.load(f)
-        
-        collection = db[COLLECTION_NAME]
-        
-        # Clear any existing data to ensure a clean slate.
-        collection.delete_many({})
-        
-        # Insert the data into the collection.
-        if data:
-            result = collection.insert_many(data)
-            print(f"Successfully inserted {len(result.inserted_ids)} documents into the '{COLLECTION_NAME}' collection.")
-        else:
-            print("The data file is empty. No documents to import.")
-
+        with open(file_path, 'r') as file:
+            data = json.load(file)
+            logging.info(f"Successfully loaded data from '{file_path}'.")
+            return data
     except FileNotFoundError:
-        print(f"Error: The file '{DATA_FILE}' was not found.")
+        logging.error(f"Error: The file '{file_path}' was not found. Please ensure it exists.", exc_info=True)
+        return []
     except json.JSONDecodeError:
-        print(f"Error: Failed to decode the JSON file '{DATA_FILE}'. Please check its format.")
+        logging.error(f"Error: The file '{file_path}' is not a valid JSON file.", exc_info=True)
+        return []
     except Exception as e:
-        print(f"An unexpected error occurred during data import: {e}")
+        logging.error(f"An unexpected error occurred while loading data: {e}", exc_info=True)
+        return []
+
+def import_data_to_mongodb(client, data, db_name, collection_name):
+    """
+    Ingests data into a specified MongoDB collection.
+
+    Args:
+        client (MongoClient): The MongoDB client object.
+        data (list): The list of dictionaries to import.
+        db_name (str): The name of the database.
+        collection_name (str): The name of the collection.
+    """
+    try:
+        db = client.get_database(db_name)
+        collection = db[collection_name]
+        
+        # Clear existing data
+        collection.delete_many({})
+        logging.info(f"Clearing existing data from '{collection_name}' collection...")
+        
+        # Insert the new data
+        if data:
+            collection.insert_many(data)
+            logging.info(f"Successfully inserted {len(data)} records into '{collection_name}' collection.")
+        else:
+            logging.warning("No data to insert.")
+        
+    except Exception as e:
+        logging.error(f"An error occurred during data ingestion: {e}", exc_info=True)
+
+def main():
+    """
+    Main function to run the data ingestion process.
+    """
+    logging.info("--- Starting Data Ingestion Process ---")
+    client = connect_to_mongodb()
+    
+    if client:
+        try:
+            # Load data from the JSON file
+            sample_data = load_data_from_file(DATA_FILE_PATH)
+            
+            # Import data into MongoDB
+            import_data_to_mongodb(client, sample_data, DB_NAME, COLLECTION_NAME)
+        
+        finally:
+            client.close()
+            logging.info("MongoDB connection closed.")
+    else:
+        logging.error("Failed to connect to MongoDB. Data ingestion process aborted.")
+        
+    logging.info("--- Data Ingestion Process Finished ---")
 
 if __name__ == "__main__":
-    import_data()
+    main()
